@@ -1,0 +1,13 @@
+bin/
+obj/
+release/
+dist/
+*.user
+.vs/
+
+# internal notes from development
+HANDOFF.md
+
+# dictionary build inputs (large; download them, see README)
+tools/count_1w.txt
+tools/spell_words.txt
