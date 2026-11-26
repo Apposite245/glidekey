@@ -174,14 +174,23 @@ namespace GlideKey
             MinimumSize = Size.Empty;
             Size = new Size(w, h); // borderless: window size == client size
 
-            // header controls, right-aligned
-            float bh = 26 * scale, by = (headerH - bh) / 2f + 1 * scale, x = w - pad;
-            btnHide = new RectangleF(x -= 30 * scale, by, 30 * scale, bh);
-            btnMin = new RectangleF(x -= 34 * scale, by, 30 * scale, bh);
-            btnMenu = new RectangleF(x -= 34 * scale, by, 30 * scale, bh);
-            btnPlus = new RectangleF(x -= 34 * scale, by, 28 * scale, bh);
-            btnMinus = new RectangleF(x -= 28 * scale, by, 28 * scale, bh);
-            btnLayout = new RectangleF(x -= 88 * scale, by, 80 * scale, bh);
+            // Header controls, laid out right to left. Each button advances by its own width plus
+            // the gap, so no button can land on its neighbour.
+            float bh = 26 * scale, by = (headerH - bh) / 2f + 1 * scale, x = w - pad, bgap = 5 * scale;
+            RectangleF Btn(float bw)
+            {
+                x -= bw;
+                var r = new RectangleF(x, by, bw, bh);
+                x -= bgap;
+                return r;
+            }
+            btnHide = Btn(30 * scale);
+            btnMin = Btn(30 * scale);
+            btnMenu = Btn(30 * scale);
+            btnPlus = Btn(28 * scale);
+            btnMinus = Btn(28 * scale);
+            x -= bgap; // a little more air before the zoom pair
+            btnLayout = Btn(80 * scale);
             gripRect = new RectangleF(pad, 0, 110 * scale, headerH);
 
             var centers = new Dictionary<char, PointF>();
@@ -230,6 +239,16 @@ namespace GlideKey
         }
 
         public KeyRect FindKey(string id) => keys.Find(k => k.def.id == id);
+
+        // Header hit rects, for the geometry test (they are hand-placed, not laid out by Geometry).
+        public (string id, RectangleF r)[] HeaderButtons() => new[]
+        {
+            ("layout", btnLayout), ("minus", btnMinus), ("plus", btnPlus),
+            ("menu", btnMenu), ("minimize", btnMin), ("hide", btnHide)
+        };
+
+        public float HeaderHeight => headerH;
+        public RectangleF GripRect => gripRect;
 
         protected override void OnMouseDown(MouseEventArgs e)
         {

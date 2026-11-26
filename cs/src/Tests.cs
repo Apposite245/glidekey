@@ -455,6 +455,35 @@ namespace GlideKey
                 o.WriteLine($"  words [{string.Join(",", r.Words)}] avg {r.BestAvg:0.00}; sim first {pts[0]} last {pts[^1]}");
             }
 
+            // header buttons: no overlaps, inside the header, clear of the drag grip
+            foreach (var layout in new[] { Layouts.CompactName, Layouts.FullName })
+            {
+                form.SetLayout(layout);
+                foreach (var scale in new[] { 0.6f, 1.0f, 1.5f, 2.2f })
+                {
+                    form.S.scale = scale;
+                    form.ChangeSize(0);
+                    var btns = form.HeaderButtons();
+                    for (int i = 0; i < btns.Length; i++)
+                    {
+                        var (id, r) = btns[i];
+                        Check(r.Top >= 0 && r.Bottom <= form.HeaderHeight + 0.01f,
+                            $"{layout}@{scale}: {id} is inside the header ({r.Top:0.#}-{r.Bottom:0.#} vs {form.HeaderHeight:0.#})");
+                        Check(r.Left >= form.GripRect.Right, $"{layout}@{scale}: {id} clears the drag grip");
+                        Check(r.Right <= form.ClientSize.Width, $"{layout}@{scale}: {id} is inside the window");
+                        for (int j = i + 1; j < btns.Length; j++)
+                        {
+                            var o = btns[j];
+                            // a real gap, not merely non-intersecting: rects that just touch still
+                            // draw their 1 px borders on top of each other
+                            float gap = Math.Max(r.Left - o.r.Right, o.r.Left - r.Right);
+                            Check(gap >= 2f * scale, $"{layout}@{scale}: {id} and {o.id} are only {gap:0.##} px apart");
+                        }
+                    }
+                }
+            }
+            form.S.scale = 1.0f; form.ChangeSize(0); form.SetLayout(Layouts.CompactName);
+
             // hidden in the tray (no taskbar button): a second launch broadcasts WM_GLIDEKEY_SHOW,
             // which must bring this window back — the pinned-shortcut path
             bool shown = false;
