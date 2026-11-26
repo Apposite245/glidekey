@@ -33,6 +33,7 @@ namespace GlideKey
             var sw = Stopwatch.StartNew();
             o.WriteLine("== layout"); Layout();
             o.WriteLine("== vk table"); VkTable();
+            o.WriteLine("== icon"); IconTests();
             o.WriteLine("== controller"); ControllerTests();
             o.WriteLine("== swipe"); SwipeTests();
             o.WriteLine($"unit: {passes} passed, {fails} failed ({sw.ElapsedMilliseconds} ms)");
@@ -91,6 +92,48 @@ namespace GlideKey
             Eq(VK.F(12), 0x7B, "VK_F12"); Eq(VK.Letter('z'), 0x5A, "VK_Z");
             Check(VK.IsExtended(VK.Right) && VK.IsExtended(VK.RCtrl) && !VK.IsExtended(VK.LCtrl) && !VK.IsExtended(VK.Num(7)), "extended flags");
             Eq(Native.InputSize, IntPtr.Size == 8 ? 40 : 28, "sizeof(INPUT)");
+        }
+
+        // The icon must be embedded AND present as the exe's Win32 resource — the taskbar and a
+        // pinned shortcut read the resource, not anything drawn at runtime.
+        static void IconTests()
+        {
+            using var s = System.Reflection.Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream("GlideKey.assets.glidekey.ico");
+            Check(s != null, "glidekey.ico is embedded");
+            if (s == null) return;
+            var raw = new byte[s.Length];
+            s.ReadExactly(raw);
+            Check(raw.Length > 2000, $"icon is {raw.Length} bytes");
+            Check(raw[0] == 0 && raw[1] == 0 && raw[2] == 1 && raw[3] == 0, "icon has an ICONDIR header");
+            int frames = raw[4] | (raw[5] << 8);
+            Check(frames >= 6, $"icon has {frames} sizes");
+            for (int i = 0; i < frames; i++) // every frame's data must lie inside the file
+            {
+                int e = 6 + 16 * i;
+                int len = BitConverter.ToInt32(raw, e + 8), off = BitConverter.ToInt32(raw, e + 12);
+                Check(off > 0 && len > 0 && off + len <= raw.Length, $"icon frame {i} ({raw[e]}px) fits in the file");
+            }
+            foreach (int px in new[] { 16, 32, 48 })
+            {
+                using var ms = new MemoryStream(raw);
+                using var ico = new Icon(ms, px, px);
+                Check(ico.Width == px, $"icon has a {px}px frame (got {ico.Width})");
+            }
+            using (var ms = new MemoryStream(raw))
+            using (var ico = new Icon(ms, 32, 32))
+            using (var bmp = ico.ToBitmap())
+            {
+                // corners transparent: catches stray pixels from the generator
+                Check(bmp.GetPixel(0, 0).A == 0 && bmp.GetPixel(31, 0).A == 0 && bmp.GetPixel(0, 31).A == 0,
+                    "icon corners are transparent");
+                Check(bmp.GetPixel(16, 16).A > 200, "icon centre is opaque");
+            }
+            // the Win32 resource in our own exe (what a pinned shortcut shows)
+            string exe = Environment.ProcessPath;
+            var own = Icon.ExtractAssociatedIcon(exe);
+            Check(own != null && own.Width > 0, "exe carries a Win32 icon resource");
+            own?.Dispose();
         }
 
         // A US-layout decoder for event logs: what text would these events produce?
@@ -411,6 +454,21 @@ namespace GlideKey
                 o.WriteLine($"  engine pitch {eng.Pitch} dict {eng.Dict.Count} trace {eng.Trace.Count} pts len {eng.TraceLength():0}; first {eng.Trace[0]} last {eng.Trace[^1]}");
                 o.WriteLine($"  words [{string.Join(",", r.Words)}] avg {r.BestAvg:0.00}; sim first {pts[0]} last {pts[^1]}");
             }
+
+            // hidden in the tray (no taskbar button): a second launch broadcasts WM_GLIDEKEY_SHOW,
+            // which must bring this window back — the pinned-shortcut path
+            bool shown = false;
+            form.ShowRequested += () => { shown = true; form.Show(); form.Restore(); form.SurfaceNoActivate(); };
+            form.Hide();
+            Check(!form.Visible, "form hides to the tray");
+            Native.SendMessage(h, Native.WM_GLIDEKEY_SHOW, IntPtr.Zero, IntPtr.Zero);
+            Check(shown && form.Visible, "WM_GLIDEKEY_SHOW brings the hidden keyboard back");
+            Check(Native.WM_GLIDEKEY_SHOW >= 0xC000 && Native.WM_GLIDEKEY_SHOW <= 0xFFFF,
+                $"show message is a registered id (0x{Native.WM_GLIDEKEY_SHOW:X4})");
+            form.Minimize();
+            Check(form.WindowState == FormWindowState.Minimized, "form minimizes");
+            Native.SendMessage(h, Native.WM_GLIDEKEY_SHOW, IntPtr.Zero, IntPtr.Zero);
+            Check(form.WindowState == FormWindowState.Normal, "WM_GLIDEKEY_SHOW restores a minimized keyboard");
 
             o.WriteLine($"smoke: {passes} passed, {fails} failed");
             o.Flush();

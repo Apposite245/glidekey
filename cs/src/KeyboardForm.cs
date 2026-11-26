@@ -32,6 +32,7 @@ namespace GlideKey
         readonly List<RectangleF> chipRects = new();
         public ContextMenuStrip OptionsMenu;
         public event Action HideRequested;
+        public event Action ShowRequested;
 
         Bitmap baseLayer; string baseKey;
         Font fLetter, fSym, fSmall, fTiny, fHeader, fChip;
@@ -93,6 +94,12 @@ namespace GlideKey
         {
             const int WM_MOUSEACTIVATE = 0x0021, MA_NOACTIVATE = 3;
             if (m.Msg == WM_MOUSEACTIVATE) { m.Result = (IntPtr)MA_NOACTIVATE; return; }
+            if (m.Msg == Native.WM_GLIDEKEY_SHOW)
+            {
+                Debug.Log("show requested by another instance");
+                ShowRequested?.Invoke();
+                return;
+            }
             base.WndProc(ref m);
         }
 
@@ -108,6 +115,13 @@ namespace GlideKey
             if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         }
 
+        // Make sure the keyboard is on screen and on top, without taking focus from the app
+        // the user is typing into.
+        public void SurfaceNoActivate()
+        {
+            if (IsHandleCreated) Native.BringToFrontNoActivate(Handle, S.topmost);
+        }
+
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
@@ -119,6 +133,7 @@ namespace GlideKey
             base.OnHandleCreated(e);
             Native.RoundCorners(Handle);
             Native.DisablePressAndHold(Handle);
+            Native.AllowMessage(Handle, Native.WM_GLIDEKEY_SHOW);
             if (DeviceDpi != 96) Rebuild(); // sizes were computed at 96 dpi before the handle existed
         }
 

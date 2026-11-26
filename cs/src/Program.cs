@@ -62,7 +62,13 @@ namespace GlideKey
             if (args.Length > 1 && args[0] == "--render") return Tests.Render(args[1], args.Length > 2 ? args[2] : Layouts.CompactName);
 
             using var mutex = new Mutex(true, "GlideKey.SingleInstance.v1", out bool first);
-            if (!first) return 0;
+            if (!first)
+            {
+                // Already running, possibly hidden in the tray with no taskbar button — which is
+                // what a pinned-shortcut click lands on. Ask the running copy to show itself.
+                Native.PostMessage(Native.HWND_BROADCAST, Native.WM_GLIDEKEY_SHOW, IntPtr.Zero, IntPtr.Zero);
+                return 0;
+            }
 
             var settings = SettingsStore.Load();
             var dict = WordDict.FromResource();
@@ -93,9 +99,10 @@ namespace GlideKey
             BuildMenu();
             form.OptionsMenu = menu;
             form.HideRequested += HideKeyboard;
-            var icon = MakeIcon();
-            form.Icon = icon; // taskbar button
-            tray = new NotifyIcon { Icon = icon, Text = "GlideKey — click to show/hide", ContextMenuStrip = menu, Visible = true };
+            form.ShowRequested += ShowKeyboard; // another launch (e.g. the taskbar shortcut)
+            form.Icon = LoadIcon();                                        // taskbar button, Alt-Tab
+            var trayIcon = LoadIcon(SystemInformation.SmallIconSize.Width); // crisp at the tray's own size
+            tray = new NotifyIcon { Icon = trayIcon, Text = "GlideKey — click to show/hide", ContextMenuStrip = menu, Visible = true };
             tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) Toggle(); };
         }
 
@@ -151,7 +158,7 @@ namespace GlideKey
             form.Show();
             form.Restore();
             if (first) form.PlaceInitially(); // again, now that the real DPI (and so the size) is known
-            if (form.S.topmost) form.SetTopmost(true);
+            form.SurfaceNoActivate();
         }
 
         void HideKeyboard()
@@ -175,24 +182,18 @@ namespace GlideKey
             Application.Exit();
         }
 
-        static Icon MakeIcon()
+        // assets\glidekey.ico, the same file the exe carries as its Win32 icon. size = 0 keeps every
+        // frame (for the window, where Windows picks per use); otherwise the nearest frame is used.
+        public static Icon LoadIcon(int size = 0)
         {
-            using var bmp = new Bitmap(32, 32);
-            using (var g = Graphics.FromImage(bmp))
+            try
             {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                using var body = new LinearGradientBrush(new Rectangle(0, 4, 32, 24), Color.FromArgb(96, 140, 255), Color.FromArgb(150, 110, 255), 0f);
-                using var path = new GraphicsPath();
-                path.AddArc(1, 5, 8, 8, 180, 90); path.AddArc(23, 5, 8, 8, 270, 90);
-                path.AddArc(23, 19, 8, 8, 0, 90); path.AddArc(1, 19, 8, 8, 90, 90); path.CloseFigure();
-                g.FillPath(body, path);
-                using var key = new SolidBrush(Color.FromArgb(235, 255, 255, 255));
-                for (int r = 0; r < 2; r++)
-                    for (int c = 0; c < 5; c++)
-                        g.FillRectangle(key, 5 + c * 5, 9 + r * 5, 3, 3);
-                g.FillRectangle(key, 9, 20, 14, 3);
+                using var s = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("GlideKey.assets.glidekey.ico");
+                if (s != null) return size > 0 ? new Icon(s, size, size) : new Icon(s);
             }
-            return Icon.FromHandle(bmp.GetHicon());
+            catch (Exception ex) { Debug.Log("icon load failed: " + ex.Message); }
+            return SystemIcons.Application;
         }
     }
 }

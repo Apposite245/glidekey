@@ -115,6 +115,25 @@ namespace GlideKey
             => SetWindowPos(h, on ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
 
         [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, int msg, IntPtr w, IntPtr l);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int RegisterWindowMessage(string name);
+        [DllImport("user32.dll")] static extern bool ChangeWindowMessageFilterEx(IntPtr h, int msg, int action, IntPtr change);
+
+        public static readonly IntPtr HWND_BROADCAST = new(0xFFFF);
+
+        // "Show yourself" from a second launch of GlideKey. A registered message id is unique
+        // process-wide, so broadcasting it can only be understood by another GlideKey.
+        public static readonly int WM_GLIDEKEY_SHOW = RegisterWindowMessage("GlideKey.ShowWindow.v1");
+
+        // Let the message through UIPI, so a normal launch can still reach an elevated instance.
+        public static void AllowMessage(IntPtr h, int msg) => ChangeWindowMessageFilterEx(h, msg, 1 /* MSGFLT_ALLOW */, IntPtr.Zero);
+
+        const uint SWP_SHOWWINDOW = 0x40;
+
+        // Raise to the top of the z-order without activating: the window must never take focus
+        // from whatever the user is typing into.
+        public static void BringToFrontNoActivate(IntPtr h, bool topmost)
+            => SetWindowPos(h, topmost ? HWND_TOPMOST : IntPtr.Zero, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 
         // Disable the touch press-and-hold => right-click gesture (it delays touch key repeat).
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool SetProp(IntPtr h, string name, IntPtr data);

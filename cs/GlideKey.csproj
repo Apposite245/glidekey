@@ -9,12 +9,16 @@
     <AssemblyName>GlideKey</AssemblyName>
     <RootNamespace>GlideKey</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>1.0.0</Version>
+    <!-- Win32 icon resource: what Explorer, the taskbar and a pinned shortcut show. -->
+    <ApplicationIcon>assets\glidekey.ico</ApplicationIcon>
+    <Version>1.0.1</Version>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="assets\words.txt" />
+    <!-- the same icon again, for the window and tray at runtime -->
+    <EmbeddedResource Include="assets\glidekey.ico" />
   </ItemGroup>
 
 </Project>
