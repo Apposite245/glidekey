@@ -479,7 +479,8 @@ namespace GlideKey
             Pill(g, btnMinus, "−", false);
             Pill(g, btnPlus, "+", false);
             Pill(g, btnMenu, "⚙", false, fSym);
-            Pill(g, btnMin, "–", false);
+            Pill(g, btnMin, null, false);
+            DrawMinimizeGlyph(g, btnMin);
             Pill(g, btnHide, "✕", false, fSym);
 
             // suggestion chips, centred in the free space
@@ -522,6 +523,22 @@ namespace GlideKey
                 x += widths[i] + 8 * scale;
             }
             if (Ctl.StripIsLive) chipRects.Clear(); // live guesses aren't tappable
+        }
+
+        // Minimize: a chevron dropping onto a bar (the taskbar). Not a dash — the zoom-out button
+        // two along is a dash, and two dashes side by side read as the same control.
+        void DrawMinimizeGlyph(Graphics g, RectangleF r)
+        {
+            float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, w = 9f * scale;
+            using var pen = new Pen(CDim, 1.5f * scale)
+            { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+            g.DrawLines(pen, new[]
+            {
+                new PointF(cx - w / 2f, cy - 4.6f * scale),
+                new PointF(cx, cy - 0.4f * scale),
+                new PointF(cx + w / 2f, cy - 4.6f * scale)
+            });
+            g.DrawLine(pen, cx - w / 2f, cy + 4.2f * scale, cx + w / 2f, cy + 4.2f * scale);
         }
 
         void Pill(Graphics g, RectangleF r, string text, bool on, Font f = null)

@@ -27,7 +27,7 @@ Unzip and run `GlideKey.exe`. A tray icon appears: left-click it to show or hide
 | Caps / Num / Scroll Lock | Real OS toggles. The indicators follow the physical keyboard too. |
 | Phone conveniences | Double-tap space = ". "; `.`, `,`, `?`, `!`… after a swiped word moves the space after the punctuation; Backspace right after a swipe deletes the whole word; sentence starts are capitalised. Each can be turned off in the menu. |
 | Layouts | **compact** (65%: F-row, arrows, nav keys) or **full** (104 keys + numpad + media keys). Toggle in the header. |
-| Minimize / hide | `–` minimizes to the taskbar (click the taskbar button to restore); `✕` hides to the tray. Clicking a pinned taskbar shortcut brings it back from either state instead of starting a second copy. GlideKey never moves focus itself, so after it reappears, click back into your text box. |
+| Minimize / hide | The chevron-over-a-bar button minimizes to the taskbar (click the taskbar button to restore); `✕` hides to the tray. Clicking a pinned taskbar shortcut brings it back from either state instead of starting a second copy. GlideKey never moves focus itself, so after it reappears, click back into your text box. |
 | Size / move | `−` `+` in the header, or Size in the menu. Drag the header to move. Position, size and options persist in `%APPDATA%\GlideKey\settings.json`. |
 
 Limitation: Windows blocks input from normal apps into elevated (admin) windows. To type into those, run GlideKey as administrator.
